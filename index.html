@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gmail Account Manager</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Futuristic base theme */
+    body {
+      background: linear-gradient(135deg, #0a0f23 0%, #1a2a4a 100%);
+      overflow-x: hidden;
+      font-family: 'Orbitron', sans-serif;
+    }
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron&display=swap');
+
+    .holo-card {
+      background: rgba(10, 15, 35, 0.9);
+      border: 1px solid #00ffcc;
+      border-radius: 15px;
+      box-shadow: 0 0 20px rgba(0, 255, 204, 0.3), inset 0 0 10px rgba(0, 255, 204, 0.2);
+      backdrop-filter: blur(5px);
+      animation: pulse 2s infinite alternate;
+    }
+
+    @keyframes pulse {
+      from { box-shadow: 0 0 10px rgba(0, 255, 204, 0.3); }
+      to { box-shadow: 0 0 30px rgba(0, 255, 204, 0.6); }
+    }
+
+    .neon-button {
+      background: linear-gradient(90deg, #00ffcc, #00ccff);
+      color: #0a0f23;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      font-weight: bold;
+      text-transform: uppercase;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .neon-button::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      transition: width 0.6s ease, height 0.6s ease;
+    }
+
+    .neon-button:hover::before {
+      width: 300px;
+      height: 300px;
+    }
+
+    .neon-button:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 20px #00ffcc;
+    }
+
+    .slide-in {
+      animation: slideIn 0.5s ease-out;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateY(100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .holo-text {
+      color: #00ffcc;
+      text-shadow: 0 0 5px #00ffcc, 0 0 10px #00ccff;
+      animation: glow 1.5s ease-in-out infinite alternate;
+    }
+
+    @keyframes glow {
+      from { text-shadow: 0 0 5px #00ffcc, 0 0 10px #00ccff; }
+      to { text-shadow: 0 0 10px #00ffcc, 0 0 20px #00ccff; }
+    }
+
+    .account-item {
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid #00ffcc;
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 10px;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .account-item:hover {
+      transform: scale(1.02);
+      box-shadow: 0 0 15px rgba(0, 255, 204, 0.5);
+    }
+
+    .status-saved {
+      color: #00ff00;
+      text-shadow: 0 0 3px #00ff00;
+    }
+  </style>
+</head>
+<body class="flex items-center justify-center min-h-screen">
+  <div class="holo-card p-6 w-full max-w-md mx-auto my-8 slide-in" id="app">
+    <h1 class="holo-text text-4xl font-bold text-center mb-6">Gmail Account Manager</h1>
+
+    <div class="mb-5">
+      <label class="block holo-text text-sm font-semibold mb-2" for="email">Gmail</label>
+      <input type="email" id="email" class="w-full p-3 bg-gray-900 text-white border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500" placeholder="Enter Gmail address">
+    </div>
+
+    <div class="mb-5">
+      <label class="block holo-text text-sm font-semibold mb-2" for="password">Password</label>
+      <input type="password" id="password" class="w-full p-3 bg-gray-900 text-white border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500" placeholder="Enter password">
+    </div>
+
+    <div class="mb-5 flex items-center">
+      <input type="checkbox" id="isSold" class="mr-2 h-5 w-5 text-blue-500">
+      <label class="holo-text text-sm" for="isSold">Mark as Sold</label>
+    </div>
+
+    <div class="flex space-x-4 mb-6">
+      <button onclick="saveAccount()" class="neon-button w-full">Save Account</button>
+      <button onclick="sendAllAccounts()" class="neon-button w-full">Send All to Webhook</button>
+    </div>
+
+    <p id="message" class="mt-4 text-center text-xl holo-text"></p>
+
+    <div class="mt-6">
+      <h2 class="holo-text text-2xl font-semibold text-center mb-4">Saved Accounts (Unsold)</h2>
+      <ul id="accountsList" class="space-y-4"></ul>
+    </div>
+  </div>
+
+  <script>
+    const WEBHOOK_URL = 'https://discord.com/api/webhooks/1411295494327631912/zx3-o_BTuEoA6EqpqhkXX0KgoZG7Na2z7uyT76a4FLdmIcRWV_Lpx8nNujKohCewbC_s';
+
+    function loadAccounts() {
+      const accounts = JSON.parse(localStorage.getItem('accounts') || '[]');
+      updateAccountsDisplay(accounts);
+    }
+
+    function saveAccount() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const isSold = document.getElementById('isSold').checked;
+
+      if (!email || !password) {
+        showMessage('Please fill in both email and password.', true);
+        return;
+      }
+
+      const newAccount = { id: Date.now(), email, password, isSold, status: 'Saved' };
+      let accounts = JSON.parse(localStorage.getItem('accounts') || '[]');
+      accounts.push(newAccount);
+      localStorage.setItem('accounts', JSON.stringify(accounts));
+
+      document.getElementById('email').value = '';
+      document.getElementById('password').value = '';
+      document.getElementById('isSold').checked = false;
+      showMessage('Account saved successfully!', false);
+
+      if (WEBHOOK_URL) {
+        fetch(WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content: `New Gmail Account\nEmail: ${email}\nPassword: ${password}\nStatus: ${isSold ? 'Sold' : 'Unsold'}`
+          })
+        })
+        .then(response => {
+          if (response.ok) showMessage('Account saved and sent to Discord!', false);
+          else showMessage('Account saved, but failed to send to Discord.', true);
+        })
+        .catch(() => showMessage('Account saved, but error sending to Discord.', true));
+      }
+      updateAccountsDisplay(accounts);
+    }
+
+    function sendAllAccounts() {
+      let accounts = JSON.parse(localStorage.getItem('accounts') || '[]');
+
+      if (accounts.length === 0) {
+        showMessage('No accounts to send.', true);
+        return;
+      }
+
+      showMessage('Sending all unsold accounts to Discord...', false);
+      const unsoldAccounts = accounts.filter(a => !a.isSold);
+      if (unsoldAccounts.length === 0) {
+        showMessage('No unsold accounts to send.', true);
+        return;
+      }
+
+      let sentCount = 0;
+      unsoldAccounts.forEach(account => {
+        fetch(WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content: `Gmail Account\nEmail: ${account.email}\nPassword: ${account.password}\nStatus: ${account.isSold ? 'Sold' : 'Unsold'}`
+          })
+        })
+        .then(response => {
+          if (response.ok) sentCount++;
+          if (sentCount === unsoldAccounts.length) showMessage('All unsold accounts sent to Discord!', false);
+        })
+        .catch(() => showMessage('Error sending some accounts to Discord.', true));
+      });
+    }
+
+    function toggleSold(id) {
+      let accounts = JSON.parse(localStorage.getItem('accounts') || '[]');
+      accounts = accounts.map(account => account.id === id ? { ...account, isSold: !account.isSold } : account);
+      localStorage.setItem('accounts', JSON.stringify(accounts));
+      showMessage('Account status updated!', false);
+      updateAccountsDisplay(accounts);
+    }
+
+    function deleteAccount(id) {
+      let accounts = JSON.parse(localStorage.getItem('accounts') || '[]');
+      accounts = accounts.filter(account => account.id !== id);
+      localStorage.setItem('accounts', JSON.stringify(accounts));
+      showMessage('Account deleted!', false);
+      updateAccountsDisplay(accounts);
+    }
+
+    function updateAccountsDisplay(accounts) {
+      const unsoldAccounts = accounts.filter(account => !account.isSold);
+      const list = document.getElementById('accountsList');
+      list.innerHTML = unsoldAccounts.length === 0
+        ? '<p class="text-gray-400 text-center">No unsold accounts saved yet.</p>'
+        : unsoldAccounts.map(account => `
+          <li class="account-item flex justify-between items-center">
+            <div>
+              <p class="text-white"><strong>Email:</strong> ${account.email}</p>
+              <p class="text-white"><strong>Password:</strong> ${account.password}</p>
+              <p class="text-gray-300"><strong>Status:</strong> <span class="status-saved">${account.status}</span></p>
+            </div>
+            <div class="flex space-x-3">
+              <button onclick="toggleSold(${account.id})" class="text-blue-300 hover:text-blue-500">Toggle Sold</button>
+              <button onclick="deleteAccount(${account.id})" class="text-red-300 hover:text-red-500">Delete</button>
+            </div>
+          </li>
+        `).join('');
+    }
+
+    function showMessage(text, isError = false) {
+      const message = document.getElementById('message');
+      message.textContent = text;
+      message.className = `mt-4 text-center text-xl holo-text ${isError ? 'text-red-500' : 'text-green-500'}`;
+    }
+
+    window.onload = loadAccounts;
+  </script>
+</body>
+</html>
