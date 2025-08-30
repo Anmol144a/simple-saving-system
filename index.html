@@ -139,9 +139,24 @@
   <script>
     const WEBHOOK_URL = 'https://discord.com/api/webhooks/1411295494327631912/zx3-o_BTuEoA6EqpqhkXX0KgoZG7Na2z7uyT76a4FLdmIcRWV_Lpx8nNujKohCewbC_s';
 
+    // Generate or retrieve a unique device/session ID
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+      deviceId = crypto.randomUUID();
+      localStorage.setItem('deviceId', deviceId);
+    }
+
     function loadAccounts() {
-      const accounts = JSON.parse(localStorage.getItem('accounts') || '[]');
-      updateAccountsDisplay(accounts);
+      let allAccounts = [];
+      // Check all stored keys for accounts
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('accounts_')) {
+          const accounts = JSON.parse(localStorage.getItem(key) || '[]');
+          allAccounts = allAccounts.concat(accounts);
+        }
+      }
+      updateAccountsDisplay(allAccounts);
     }
 
     function saveAccount() {
@@ -155,9 +170,9 @@
       }
 
       const newAccount = { id: Date.now(), email, password, isSold, status: 'Saved' };
-      let accounts = JSON.parse(localStorage.getItem('accounts') || '[]');
+      let accounts = JSON.parse(localStorage.getItem(`accounts_${deviceId}`) || '[]');
       accounts.push(newAccount);
-      localStorage.setItem('accounts', JSON.stringify(accounts));
+      localStorage.setItem(`accounts_${deviceId}`, JSON.stringify(accounts));
 
       document.getElementById('email').value = '';
       document.getElementById('password').value = '';
@@ -182,15 +197,22 @@
     }
 
     function sendAllAccounts() {
-      let accounts = JSON.parse(localStorage.getItem('accounts') || '[]');
+      let allAccounts = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('accounts_')) {
+          const accounts = JSON.parse(localStorage.getItem(key) || '[]');
+          allAccounts = allAccounts.concat(accounts);
+        }
+      }
 
-      if (accounts.length === 0) {
+      if (allAccounts.length === 0) {
         showMessage('No accounts to send.', true);
         return;
       }
 
       showMessage('Sending all unsold accounts to Discord...', false);
-      const unsoldAccounts = accounts.filter(a => !a.isSold);
+      const unsoldAccounts = allAccounts.filter(a => !a.isSold);
       if (unsoldAccounts.length === 0) {
         showMessage('No unsold accounts to send.', true);
         return;
@@ -214,19 +236,31 @@
     }
 
     function toggleSold(id) {
-      let accounts = JSON.parse(localStorage.getItem('accounts') || '[]');
-      accounts = accounts.map(account => account.id === id ? { ...account, isSold: !account.isSold } : account);
-      localStorage.setItem('accounts', JSON.stringify(accounts));
-      showMessage('Account status updated!', false);
-      updateAccountsDisplay(accounts);
+      let allAccounts = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('accounts_')) {
+          const accounts = JSON.parse(localStorage.getItem(key) || '[]');
+          allAccounts = allAccounts.concat(accounts);
+        }
+      }
+      const account = allAccounts.find(a => a.id === id);
+      if (account) {
+        account.isSold = !account.isSold;
+        const deviceAccounts = JSON.parse(localStorage.getItem(`accounts_${deviceId}`) || '[]');
+        const updatedDeviceAccounts = deviceAccounts.map(a => a.id === id ? account : a);
+        localStorage.setItem(`accounts_${deviceId}`, JSON.stringify(updatedDeviceAccounts));
+        showMessage('Account status updated!', false);
+        updateAccountsDisplay(updatedDeviceAccounts);
+      }
     }
 
     function deleteAccount(id) {
-      let accounts = JSON.parse(localStorage.getItem('accounts') || '[]');
-      accounts = accounts.filter(account => account.id !== id);
-      localStorage.setItem('accounts', JSON.stringify(accounts));
+      let deviceAccounts = JSON.parse(localStorage.getItem(`accounts_${deviceId}`) || '[]');
+      deviceAccounts = deviceAccounts.filter(account => account.id !== id);
+      localStorage.setItem(`accounts_${deviceId}`, JSON.stringify(deviceAccounts));
       showMessage('Account deleted!', false);
-      updateAccountsDisplay(accounts);
+      updateAccountsDisplay(deviceAccounts);
     }
 
     function updateAccountsDisplay(accounts) {
